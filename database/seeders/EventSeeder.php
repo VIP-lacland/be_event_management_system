@@ -9,10 +9,8 @@ class EventSeeder extends Seeder
 {
     public function run(): void
     {
-        // 🔑 Tạm tắt FK check để truncate an toàn
-        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        // Truncate events table
         DB::table('events')->truncate();
-        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
 
         // Lấy ID organizer duy nhất đã tạo trong UserSeeder
         $organizerId = DB::table('users')

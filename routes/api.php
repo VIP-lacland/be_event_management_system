@@ -2,8 +2,11 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\EventController;
+<<<<<<< HEAD
 use App\Http\Controllers\Organizer\DashboardController;
 use App\Http\Controllers\AuthController;
+=======
+>>>>>>> f1578eb (feat: BE - create homepage)
 
 // Public routes
 Route::post('/auth/register', [AuthController::class, 'register']);

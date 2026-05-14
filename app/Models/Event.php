@@ -2,15 +2,22 @@
 
 namespace App\Models;
 
+<<<<<<< HEAD
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+=======
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use App\Models\User;
+>>>>>>> f1578eb (feat: BE - create homepage)
 
 class Event extends Model
 {
     use HasFactory;
 
+<<<<<<< HEAD
      public const CATEGORIES = [
         'Music',
         'Sports',
@@ -26,6 +33,8 @@ class Event extends Model
         'cancelled',
     ];
 
+=======
+>>>>>>> f1578eb (feat: BE - create homepage)
     protected $fillable = [
         'organizer_id',
         'title',
@@ -41,6 +50,7 @@ class Event extends Model
         'event_date' => 'datetime',
     ];
 
+<<<<<<< HEAD
     // ── Relationships ──────────────────────────────────────────
 
     // Event thuộc về 1 organizer (User)
@@ -83,4 +93,10 @@ class Event extends Model
     {
         return $this->remaining_capacity === 0;
     }
+=======
+    public function organizer()
+    {
+        return $this->belongsTo(User::class, 'organizer_id');
+    }
+>>>>>>> f1578eb (feat: BE - create homepage)
 }

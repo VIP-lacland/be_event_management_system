@@ -14,10 +14,8 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
-       // 🔑 Tạm tắt kiểm tra khóa ngoại (chỉ dùng cho môi trường dev)
-        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+       // Truncate users table
         DB::table('users')->truncate();
-        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
 
         $users = [
             [
