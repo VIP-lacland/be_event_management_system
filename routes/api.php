@@ -18,10 +18,11 @@ Route::middleware('auth:sanctum')->group(function () {
     // Route::get('/auth/me', [AuthController::class, 'me']);
 
     // Organizer only
-    // Route::middleware('role:organizer')->group(function () {
-    //     Route::apiResource('organizer/events', OrganizerEventController::class);
-    //     Route::patch('organizer/events/{event}/status', [OrganizerEventController::class, 'updateStatus']);
-    // });
+    Route::middleware('role:organizer')->group(function () {
+        Route::post('/organizer/events', [EventController::class, 'create']);
+        // Route::apiResource('organizer/events', OrganizerEventController::class);
+        // Route::patch('organizer/events/{event}/status', [OrganizerEventController::class, 'updateStatus']);
+    });
 
     // // Attendee only
     // Route::middleware('role:attendee')->group(function () {
