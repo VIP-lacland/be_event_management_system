@@ -25,7 +25,7 @@ class Event extends Model
     ];
 
     protected $fillable = [
-    'organizer_id',
+        'organizer_id',
         'title',
         'description',
         'category',
@@ -42,5 +42,10 @@ class Event extends Model
             'capacity' => 'integer',
         ];
     }
-}
 
+    // Define relationship to User (Organizer)
+    public function organizer()
+    {
+        return $this->belongsTo(User::class, 'organizer_id');
+    }
+}
