@@ -8,8 +8,8 @@ use App\Http\Controllers\AuthController;
 // Public routes
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login', [AuthController::class, 'login']);
-// Route::get('/events', [EventController::class, 'index']);
-// Route::get('/events/{event}', [EventController::class, 'show']);
+Route::get('/events', [EventController::class, 'index']);
+Route::get('/events/{event}', [EventController::class, 'show']);
 
 // Protected routes ( need token )
 Route::middleware('auth:sanctum')->group(function () {

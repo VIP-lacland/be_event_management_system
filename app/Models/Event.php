@@ -11,6 +11,21 @@ class Event extends Model
 {
     use HasFactory;
 
+     public const CATEGORIES = [
+        'Music',
+        'Sports',
+        'Food & Drink',
+        'Arts',
+        'Education',
+        'Community',
+    ];
+
+    public const STATUSES = [
+        'draft',
+        'published',
+        'cancelled',
+    ];
+
     protected $fillable = [
         'organizer_id',
         'title',
