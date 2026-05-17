@@ -59,7 +59,7 @@ class AuthController extends Controller
         }
 
         $user = Auth::user();
-        
+
         // Tạo Sanctum token
         $token = $user->createToken('auth-token')->plainTextToken;
 
