@@ -15,10 +15,22 @@ Route::get('/events/{event}', [EventController::class, 'show']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::get('/organizer/dashboard', [DashboardController::class, 'dashboard']);
-    
+
     Route::prefix('organizer/events')->middleware(['auth:sanctum', 'role:organizer'])->group(function () {
+<<<<<<< HEAD
         Route::post('', [EventController::class, 'create']);
         Route::put('{id}', [EventController::class, 'update']);
         Route::patch('{id}/status', [EventController::class, 'updateStatus']);
     });
 });
+=======
+        Route::get('/', [EventController::class, 'myEvents']);
+        Route::get('{id}', [EventController::class, 'myEventShow']);
+        Route::post('/', [EventController::class, 'create']);
+        Route::put('{id}', [EventController::class, 'update']);
+        Route::patch('{id}/status', [EventController::class, 'updateStatus']);
+    });
+
+});
+?>
+>>>>>>> e2cde99 (feat(be): add endpoints and controller logic for organizer event management and pagination)

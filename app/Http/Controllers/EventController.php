@@ -53,6 +53,76 @@ class EventController extends Controller
     }
 
     /**
+     * Public: list all published events
+     * GET /api/events
+     */
+    public function index()
+    {
+        $events = Event::published()
+            ->upcoming()
+            ->withCount(['registrations as confirmed_count' => function ($q) {
+                $q->where('status', 'confirmed');
+            }])
+            ->orderBy('event_date')
+            ->paginate(12);
+
+        return response()->json(['data' => $events]);
+    }
+
+    /**
+     * Public: show a single event
+     * GET /api/events/{event}
+     */
+    public function show(Event $event)
+    {
+        $event->loadCount(['registrations as confirmed_count' => function ($q) {
+            $q->where('status', 'confirmed');
+        }]);
+
+        return response()->json(['data' => $event]);
+    }
+
+    /**
+     * Organizer: list my events (all statuses)
+     * GET /api/organizer/events
+     */
+    public function myEvents(Request $request)
+    {
+        $events = Event::where('organizer_id', $request->user()->id)
+            ->withCount(['registrations as confirmed_count' => function ($q) {
+                $q->where('status', 'confirmed');
+            }])
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(function ($event) {
+                $event->fill_rate = $event->capacity > 0
+                    ? round(($event->confirmed_count / $event->capacity) * 100, 1)
+                    : 0;
+                return $event;
+            });
+
+        return response()->json(['data' => $events]);
+    }
+
+    /**
+     * Organizer: show one of my events
+     * GET /api/organizer/events/{id}
+     */
+    public function myEventShow(Request $request, int $id)
+    {
+        $event = Event::where('organizer_id', $request->user()->id)
+            ->withCount(['registrations as confirmed_count' => function ($q) {
+                $q->where('status', 'confirmed');
+            }])
+            ->findOrFail($id);
+
+        $event->fill_rate = $event->capacity > 0
+            ? round(($event->confirmed_count / $event->capacity) * 100, 1)
+            : 0;
+
+        return response()->json(['event' => $event]);
+    }
+    /**
      * ES-48: Update event (all fields)
      * PUT /api/organizer/events/{id}
      */
