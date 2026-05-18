@@ -18,6 +18,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::prefix('organizer/events')->middleware(['auth:sanctum', 'role:organizer'])->group(function () {
         Route::put('{id}', [EventController::class, 'update']);
-git pull origin dev --no-rebase        Route::patch('{id}/status', [EventController::class, 'updateStatus']);
+        Route::patch('{id}/status', [EventController::class, 'updateStatus']);
+        Route::post('', [EventController::class, 'create']);
     });
 });
