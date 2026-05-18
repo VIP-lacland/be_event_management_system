@@ -11,7 +11,10 @@ class EventController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Event::query()->where('status', 'published');
+        $query = Event::published()->upcoming()
+            ->withCount(['registrations as confirmed_count' => function ($q) {
+                $q->where('status', 'confirmed');
+            }]);
 
         if ($search = $request->query('search')) {
             $query->where(function ($subQuery) use ($search) {
@@ -41,7 +44,7 @@ class EventController extends Controller
             }
         }
 
-        $events = $query->orderBy('event_date')->get();
+        $events = $query->orderBy('event_date')->paginate(12);
 
         return response()->json(['data' => $events]);
     }
@@ -49,32 +52,7 @@ class EventController extends Controller
     public function show(Event $event)
     {
         abort_if($event->status !== 'published', 404);
-        return response()->json(['data' => $event]);
-    }
-
-    /**
-     * Public: list all published events
-     * GET /api/events
-     */
-    public function index()
-    {
-        $events = Event::published()
-            ->upcoming()
-            ->withCount(['registrations as confirmed_count' => function ($q) {
-                $q->where('status', 'confirmed');
-            }])
-            ->orderBy('event_date')
-            ->paginate(12);
-
-        return response()->json(['data' => $events]);
-    }
-
-    /**
-     * Public: show a single event
-     * GET /api/events/{event}
-     */
-    public function show(Event $event)
-    {
+        
         $event->loadCount(['registrations as confirmed_count' => function ($q) {
             $q->where('status', 'confirmed');
         }]);
