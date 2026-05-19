@@ -55,12 +55,16 @@ class DashboardController extends Controller
             ]);
 
         // ── Registrations per month (line chart) ──────────────────
+        $isSqlite = DB::connection()->getDriverName() === 'sqlite';
+        $selectMonth = $isSqlite ? "strftime('%m', registrations.created_at)" : "MONTH(registrations.created_at)";
+        $selectYear = $isSqlite ? "strftime('%Y', registrations.created_at)" : "YEAR(registrations.created_at)";
+
         $registrationsPerMonth = Registration::whereHas('event', function ($q) use ($organizerId) {
             $q->where('organizer_id', $organizerId);
         })
             ->select(
-                DB::raw('MONTH(registrations.created_at) as month'),
-                DB::raw('YEAR(registrations.created_at) as year'),
+                DB::raw("$selectMonth as month"),
+                DB::raw("$selectYear as year"),
                 DB::raw('count(*) as total')
             )
             ->where('registrations.created_at', '>=', now()->subMonths(6))

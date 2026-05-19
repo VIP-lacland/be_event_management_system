@@ -14,10 +14,7 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
-        // Disable foreign key checks before truncating related tables.
-        DB::statement('SET FOREIGN_KEY_CHECKS=0');
-        DB::table('users')->truncate();
-        DB::statement('SET FOREIGN_KEY_CHECKS=1');
+        DB::table('users')->delete();
 
         $users = [
             [

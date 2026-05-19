@@ -11,7 +11,7 @@ class EventController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Event::published()->upcoming()
+        $query = Event::published()
             ->withCount(['registrations as confirmed_count' => function ($q) {
                 $q->where('status', 'confirmed');
             }]);
