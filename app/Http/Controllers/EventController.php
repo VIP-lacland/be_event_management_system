@@ -176,4 +176,87 @@ class EventController extends Controller
             'event' => $event,
         ], 201);
     }
+
+    /**
+     * Attendee: register for an event
+     * POST /api/events/{id}/register
+     */
+    public function register(Request $request, int $id)
+    {
+        $event = Event::findOrFail($id);
+        $userId = $request->user()->id;
+
+        // Check if already registered
+        $existing = \App\Models\Registration::where('event_id', $id)
+            ->where('attendee_id', $userId)
+            ->first();
+
+        if ($existing) {
+            return response()->json(['message' => 'You have already registered for this event.'], 400);
+        }
+
+        // Check capacity
+        $confirmedCount = \App\Models\Registration::where('event_id', $id)
+            ->where('status', 'confirmed')
+            ->count();
+
+        if ($event->capacity > 0 && $confirmedCount >= $event->capacity) {
+            return response()->json(['message' => 'This event is fully booked.'], 400);
+        }
+
+        // Set status based on price
+        $registrationStatus = $event->price > 0 ? 'confirmed' : 'waitlist';
+
+        $registration = \App\Models\Registration::create([
+            'event_id' => $id,
+            'attendee_id' => $userId,
+            'status' => $registrationStatus
+        ]);
+
+        return response()->json([
+            'message' => 'Registration successful',
+            'registration' => $registration
+        ], 201);
+    }
+
+    /**
+     * Attendee: list my registered tickets
+     * GET /api/attendee/tickets
+     */
+    public function myTickets(Request $request)
+    {
+        $userId = $request->user()->id;
+
+        $registrations = \App\Models\Registration::with('event')
+            ->where('attendee_id', $userId)
+            ->orderByDesc('created_at')
+            ->get();
+
+        return response()->json(['data' => $registrations]);
+    }
+
+    /**
+     * Attendee: cancel a registration
+     * DELETE /api/attendee/tickets/{eventId}
+     */
+    public function cancelTicket(Request $request, int $eventId)
+    {
+        $userId = $request->user()->id;
+
+        $registration = \App\Models\Registration::where('event_id', $eventId)
+            ->where('attendee_id', $userId)
+            ->first();
+
+        if (!$registration) {
+            return response()->json(['message' => 'Registration not found.'], 404);
+        }
+
+        if ($registration->status === 'cancelled') {
+            return response()->json(['message' => 'Ticket is already cancelled.'], 400);
+        }
+
+        $registration->update(['status' => 'cancelled']);
+
+        return response()->json(['message' => 'Ticket cancelled successfully.', 'registration' => $registration]);
+    }
 }

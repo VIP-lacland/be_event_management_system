@@ -15,6 +15,11 @@ Route::get('/events/{event}', [EventController::class, 'show']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::get('/organizer/dashboard', [DashboardController::class, 'dashboard']);
+    
+    // Attendee routes
+    Route::post('/events/{id}/register', [EventController::class, 'register']);
+    Route::get('/attendee/tickets', [EventController::class, 'myTickets']);
+    Route::delete('/attendee/tickets/{eventId}', [EventController::class, 'cancelTicket']);
 
     Route::prefix('organizer/events')->middleware(['auth:sanctum', 'role:organizer'])->group(function () {
         Route::get('/', [EventController::class, 'myEvents']);

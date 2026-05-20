@@ -30,6 +30,7 @@ class EventSeeder extends Seeder
                 'location' => 'Da Nang Convention Center',
                 'event_date' => $now->copy()->addDays(18)->setTime(18, 30),
                 'capacity' => 500,
+                'price' => 150.00,
                 'status' => 'published',
             ],
             [
@@ -40,6 +41,7 @@ class EventSeeder extends Seeder
                 'location' => 'Han River Park, Da Nang',
                 'event_date' => $now->copy()->addDays(35)->setTime(19, 0),
                 'capacity' => 180,
+                'price' => 0,
                 'status' => 'published',
             ],
             [
@@ -50,6 +52,7 @@ class EventSeeder extends Seeder
                 'location' => 'My Khe Beach, Da Nang',
                 'event_date' => $now->copy()->addDays(12)->setTime(6, 0),
                 'capacity' => 1200,
+                'price' => 20.00,
                 'status' => 'published',
             ],
             [
@@ -60,6 +63,7 @@ class EventSeeder extends Seeder
                 'location' => 'Hoa Xuan Stadium, Da Nang',
                 'event_date' => $now->copy()->next('Saturday')->setTime(8, 0),
                 'capacity' => 300,
+                'price' => 50.00,
                 'status' => 'published',
             ],
             [
@@ -70,6 +74,7 @@ class EventSeeder extends Seeder
                 'location' => 'Convention Center, Ho Chi Minh City',
                 'event_date' => $now->copy()->addDays(9)->setTime(10, 0),
                 'capacity' => 700,
+                'price' => 0,
                 'status' => 'published',
             ],
             [
@@ -80,6 +85,7 @@ class EventSeeder extends Seeder
                 'location' => 'District 1, Ho Chi Minh City',
                 'event_date' => $now->copy()->addDays(24)->setTime(14, 0),
                 'capacity' => 60,
+                'price' => 10.00,
                 'status' => 'published',
             ],
             [
@@ -90,6 +96,7 @@ class EventSeeder extends Seeder
                 'location' => 'Da Nang Cultural Center',
                 'event_date' => $now->copy()->addDays(21)->setTime(9, 30),
                 'capacity' => 350,
+                'price' => 0,
                 'status' => 'published',
             ],
             [
@@ -100,6 +107,7 @@ class EventSeeder extends Seeder
                 'location' => 'Hoan Kiem Lake, Ha Noi',
                 'event_date' => $now->copy()->addDays(16)->setTime(7, 30),
                 'capacity' => 80,
+                'price' => 0,
                 'status' => 'published',
             ],
             [
@@ -110,6 +118,7 @@ class EventSeeder extends Seeder
                 'location' => 'Da Nang Innovation Hub',
                 'event_date' => $now->copy()->addDays(27)->setTime(13, 0),
                 'capacity' => 260,
+                'price' => 25.00,
                 'status' => 'published',
             ],
             [
@@ -120,6 +129,7 @@ class EventSeeder extends Seeder
                 'location' => 'TechSpace, Ha Noi',
                 'event_date' => $now->copy()->addDays(31)->setTime(18, 0),
                 'capacity' => 120,
+                'price' => 0,
                 'status' => 'published',
             ],
             [
@@ -130,6 +140,7 @@ class EventSeeder extends Seeder
                 'location' => 'My Khe Beach, Da Nang',
                 'event_date' => $now->copy()->addDays(6)->setTime(8, 0),
                 'capacity' => 220,
+                'price' => 0,
                 'status' => 'published',
             ],
             [
@@ -140,6 +151,7 @@ class EventSeeder extends Seeder
                 'location' => 'Thu Duc City, Ho Chi Minh City',
                 'event_date' => $now->copy()->addDays(40)->setTime(9, 0),
                 'capacity' => 250,
+                'price' => 5.00,
                 'status' => 'published',
             ],
         ];
