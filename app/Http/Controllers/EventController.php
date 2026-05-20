@@ -52,7 +52,7 @@ class EventController extends Controller
     public function show(Event $event)
     {
         abort_if($event->status !== 'published', 404);
-        
+
         $event->loadCount(['registrations as confirmed_count' => function ($q) {
             $q->where('status', 'confirmed');
         }]);
@@ -120,7 +120,27 @@ class EventController extends Controller
             'status' => ['required', Rule::in(Event::STATUSES)],
         ]);
 
-        $event->update($validated);
+        $currentStatus = $event->status;
+        $newStatus = $validated['status'];
+
+        // Enforce status transition rules
+        $allowedTransitions = [
+            'draft' => ['draft', 'published', 'cancelled'],
+            'published' => ['published', 'cancelled'],
+            'cancelled' => ['cancelled'],
+        ];
+
+        if (!in_array($newStatus, $allowedTransitions[$currentStatus])) {
+            return response()->json(['message' => "Cannot change status from {$currentStatus} to {$newStatus}."], 403);
+        }
+
+        // Only draft events can be fully edited.
+        // If it's not draft, we ONLY update the status.
+        if ($currentStatus !== 'draft') {
+            $event->update(['status' => $newStatus]);
+        } else {
+            $event->update($validated);
+        }
 
         return response()->json([
             'message' => 'Event updated successfully',
@@ -142,7 +162,20 @@ class EventController extends Controller
             'status' => ['required', Rule::in(Event::STATUSES)],
         ]);
 
-        $event->update(['status' => $validated['status']]);
+        $currentStatus = $event->status;
+        $newStatus = $validated['status'];
+
+        $allowedTransitions = [
+            'draft' => ['draft', 'published', 'cancelled'],
+            'published' => ['published', 'cancelled'],
+            'cancelled' => ['cancelled'],
+        ];
+
+        if (!in_array($newStatus, $allowedTransitions[$currentStatus])) {
+            return response()->json(['message' => "Cannot change status from {$currentStatus} to {$newStatus}."], 403);
+        }
+
+        $event->update(['status' => $newStatus]);
 
         return response()->json([
             'message' => 'Event status updated successfully',
@@ -162,12 +195,8 @@ class EventController extends Controller
             'status'       => 'nullable|in:draft,published,cancelled',
         ]);
 
-        // Nếu bạn chưa làm hệ thống Login, hãy dùng tạm $request->organizer_id
-        $data['organizer_id'] = Auth::id() ?? $request->organizer_id;
-        // Kiểm tra nếu vẫn không có organizer_id thì báo lỗi để tránh lỗi SQL khóa ngoại
-        if (!$data['organizer_id']) {
-            return response()->json(['message' => 'The organizer_id is required.'], 422);
-        }
+        // Sử dụng ID của user đã đăng nhập
+        $data['organizer_id'] = Auth::id();
 
         $event = Event::create($data);
 
