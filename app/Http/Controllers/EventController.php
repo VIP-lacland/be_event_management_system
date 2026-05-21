@@ -14,6 +14,9 @@ class EventController extends Controller
         $query = Event::published()
             ->withCount(['registrations as confirmed_count' => function ($q) {
                 $q->where('status', 'confirmed');
+            }])
+            ->withCount(['registrations as registered_count' => function ($q) {
+                $q->whereIn('status', ['confirmed', 'pending']);
             }]);
 
         if ($search = $request->query('search')) {
@@ -52,9 +55,13 @@ class EventController extends Controller
     public function show(Event $event)
     {
         abort_if($event->status !== 'published', 404);
-        
+
         $event->loadCount(['registrations as confirmed_count' => function ($q) {
             $q->where('status', 'confirmed');
+        }]);
+
+        $event->loadCount(['registrations as registered_count' => function ($q) {
+            $q->whereIn('status', ['confirmed', 'pending']);
         }]);
 
         return response()->json(['data' => $event]);
@@ -108,7 +115,7 @@ class EventController extends Controller
     {
         // ES-50: Ownership check – chỉ organizer sở hữu event mới được sửa
         $event = Event::where('organizer_id', $request->user()->id)
-                      ->findOrFail($id);
+            ->findOrFail($id);
 
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
@@ -136,7 +143,7 @@ class EventController extends Controller
     {
         // ES-50: Ownership check
         $event = Event::where('organizer_id', $request->user()->id)
-                      ->findOrFail($id);
+            ->findOrFail($id);
 
         $validated = $request->validate([
             'status' => ['required', Rule::in(Event::STATUSES)],
@@ -195,16 +202,18 @@ class EventController extends Controller
             return response()->json(['message' => 'You have already registered for this event.'], 400);
         }
 
-        // Check capacity
-        $confirmedCount = \App\Models\Registration::where('event_id', $id)
+        // Check capacity - count both confirmed AND pending registrations
+        // This ensures waitlist is only used when all slots are taken
+        $registeredCount = \App\Models\Registration::where('event_id', $id)
             ->whereIn('status', ['confirmed', 'pending'])
             ->count();
 
-        if ($event->capacity > 0 && $confirmedCount >= $event->capacity) {
+        // Waitlist is only used when event is full (confirmed + pending >= capacity)
+        // Otherwise, registrations go to pending for organizer approval
+        if ($event->capacity > 0 && $registeredCount >= $event->capacity) {
             $registrationStatus = 'waitlist';
         } else {
-            // Set status based on price
-            $registrationStatus = $event->price > 0 ? 'confirmed' : 'pending';
+            $registrationStatus = 'pending';
         }
 
         $registration = \App\Models\Registration::create([
@@ -270,7 +279,7 @@ class EventController extends Controller
 
         $registrations = \App\Models\Registration::with('attendee:id,name,email')
             ->where('event_id', $event->id)
-            ->orderByRaw("CASE 
+            ->orderByRaw("CASE
                 WHEN status = 'pending' THEN 1
                 WHEN status = 'confirmed' THEN 2
                 WHEN status = 'waitlist' THEN 3

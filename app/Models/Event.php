@@ -73,11 +73,11 @@ class Event extends Model
 
     // ── Helpers ───────────────────────────────────────────────
 
-    // Số chỗ còn lại
+    // Số chỗ còn lại (tính cả confirmed và pending)
     public function getRemainingCapacityAttribute(): int
     {
-        $confirmed = $this->registrations()->where('status', 'confirmed')->count();
-        return max(0, $this->capacity - $confirmed);
+        $registered = $this->registrations()->whereIn('status', ['confirmed', 'pending'])->count();
+        return max(0, $this->capacity - $registered);
     }
 
     // Event có còn chỗ không
