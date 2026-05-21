@@ -29,11 +29,11 @@ class DashboardController extends Controller
 
         $totalAttendees = Registration::whereHas('event', function ($q) use ($organizerId) {
             $q->where('organizer_id', $organizerId);
-        })->where('status', 'confirmed')->count();
+        })->whereIn('status', ['confirmed', 'pending'])->count();
 
         $waitlistCount = Registration::whereHas('event', function ($q) use ($organizerId) {
             $q->where('organizer_id', $organizerId);
-        })->where('status', 'waitlist')->count();
+        })->whereIn('status', ['waitlist', 'pending'])->count();
 
         $upcomingEvents = Event::where('organizer_id', $organizerId)
             ->where('status', 'published')
@@ -90,7 +90,7 @@ class DashboardController extends Controller
         // ── Recent events ─────────────────────────────────────────
         $recentEvents = Event::where('organizer_id', $organizerId)
             ->withCount([
-                'registrations as confirmed_count' => fn($q) => $q->where('status', 'confirmed'),
+                'registrations as confirmed_count' => fn($q) => $q->whereIn('status', ['confirmed', 'pending']),
                 'registrations as waitlist_count'  => fn($q) => $q->where('status', 'waitlist'),
             ])
             ->orderByDesc('created_at')
@@ -111,6 +111,25 @@ class DashboardController extends Controller
                     : 0,
             ]);
 
+        // ── Pending registrations ─────────────────────────────────
+        $pendingRegistrations = Registration::whereHas('event', function ($q) use ($organizerId) {
+                $q->where('organizer_id', $organizerId);
+            })
+            ->with(['event:id,title', 'attendee:id,name,email'])
+            ->where('status', 'pending')
+            ->orderBy('created_at', 'asc')
+            ->take(10)
+            ->get()
+            ->map(fn($reg) => [
+                'id' => $reg->id,
+                'event_id' => $reg->event_id,
+                'event_title' => $reg->event->title,
+                'attendee_name' => $reg->attendee->name,
+                'attendee_email' => $reg->attendee->email,
+                'created_at' => $reg->created_at,
+                'status' => $reg->status,
+            ]);
+
         return response()->json([
             'metrics' => [
                 'total_events'     => $totalEvents,
@@ -126,6 +145,7 @@ class DashboardController extends Controller
                 'events_by_status'         => $eventsByStatus,
             ],
             'recent_events' => $recentEvents,
+            'pending_registrations' => $pendingRegistrations,
         ]);
     }
 }

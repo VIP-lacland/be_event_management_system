@@ -27,6 +27,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/', [EventController::class, 'create']);
         Route::put('{id}', [EventController::class, 'update']);
         Route::patch('{id}/status', [EventController::class, 'updateStatus']);
+        Route::get('{id}/registrations', [EventController::class, 'registrations']);
+        Route::patch('{eventId}/registrations/{registrationId}/status', [EventController::class, 'updateRegistrationStatus']);
     });
 
 });

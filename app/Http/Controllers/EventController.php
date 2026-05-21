@@ -68,7 +68,7 @@ class EventController extends Controller
     {
         $events = Event::where('organizer_id', $request->user()->id)
             ->withCount(['registrations as confirmed_count' => function ($q) {
-                $q->where('status', 'confirmed');
+                $q->whereIn('status', ['confirmed', 'pending']);
             }])
             ->orderByDesc('created_at')
             ->get()
@@ -90,7 +90,7 @@ class EventController extends Controller
     {
         $event = Event::where('organizer_id', $request->user()->id)
             ->withCount(['registrations as confirmed_count' => function ($q) {
-                $q->where('status', 'confirmed');
+                $q->whereIn('status', ['confirmed', 'pending']);
             }])
             ->findOrFail($id);
 
@@ -197,15 +197,15 @@ class EventController extends Controller
 
         // Check capacity
         $confirmedCount = \App\Models\Registration::where('event_id', $id)
-            ->where('status', 'confirmed')
+            ->whereIn('status', ['confirmed', 'pending'])
             ->count();
 
         if ($event->capacity > 0 && $confirmedCount >= $event->capacity) {
-            return response()->json(['message' => 'This event is fully booked.'], 400);
+            $registrationStatus = 'waitlist';
+        } else {
+            // Set status based on price
+            $registrationStatus = $event->price > 0 ? 'confirmed' : 'pending';
         }
-
-        // Set status based on price
-        $registrationStatus = $event->price > 0 ? 'confirmed' : 'waitlist';
 
         $registration = \App\Models\Registration::create([
             'event_id' => $id,
@@ -258,5 +258,49 @@ class EventController extends Controller
         $registration->update(['status' => 'cancelled']);
 
         return response()->json(['message' => 'Ticket cancelled successfully.', 'registration' => $registration]);
+    }
+
+    /**
+     * Organizer: list registrations for a specific event
+     * GET /api/organizer/events/{id}/registrations
+     */
+    public function registrations(Request $request, int $id)
+    {
+        $event = Event::where('organizer_id', $request->user()->id)->findOrFail($id);
+
+        $registrations = \App\Models\Registration::with('attendee:id,name,email')
+            ->where('event_id', $event->id)
+            ->orderByRaw("CASE 
+                WHEN status = 'pending' THEN 1
+                WHEN status = 'confirmed' THEN 2
+                WHEN status = 'waitlist' THEN 3
+                ELSE 4 END")
+            ->orderBy('created_at')
+            ->get();
+
+        return response()->json(['data' => $registrations]);
+    }
+
+    /**
+     * Organizer: Update registration status
+     * PATCH /api/organizer/events/{eventId}/registrations/{registrationId}/status
+     */
+    public function updateRegistrationStatus(Request $request, int $eventId, int $registrationId)
+    {
+        $event = Event::where('organizer_id', $request->user()->id)->findOrFail($eventId);
+
+        $validated = $request->validate([
+            'status' => ['required', Rule::in(['confirmed', 'rejected', 'cancelled', 'waitlist', 'pending'])],
+        ]);
+
+        $registration = \App\Models\Registration::where('event_id', $event->id)
+            ->findOrFail($registrationId);
+
+        $registration->update(['status' => $validated['status']]);
+
+        return response()->json([
+            'message' => 'Registration status updated successfully',
+            'registration' => $registration
+        ]);
     }
 }
