@@ -35,6 +35,15 @@ class UserSeeder extends Seeder
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
+            [
+                'name' => 'Attendee1 Test',
+                'email' => 'attendee1@test.com',
+                'password' => Hash::make('password123'),
+                'role' => 'attendee',
+                'email_verified_at' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
         ];
 
         DB::table('users')->insert($users);

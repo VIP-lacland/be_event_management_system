@@ -181,43 +181,65 @@ class EventController extends Controller
      * Attendee: register for an event
      * POST /api/events/{id}/register
      */
-    public function register(Request $request, int $id)
+   public function register(Request $request, int $id)
     {
         $event = Event::findOrFail($id);
         $userId = $request->user()->id;
 
-        // Check if already registered
+    // Check if already registered (any status except cancelled)
         $existing = \App\Models\Registration::where('event_id', $id)
             ->where('attendee_id', $userId)
+            ->where('status', '!=', 'cancelled')
             ->first();
 
         if ($existing) {
-            return response()->json(['message' => 'You have already registered for this event.'], 400);
-        }
+            return response()->json([
+                'message' => 'You have already registered for this event.',
+                'registration' => $existing
+            ], 409);
+    }
 
-        // Check capacity
+    // Đếm số slot đã CONFIRMED (chỉ confirmed mới chiếm chỗ)
         $confirmedCount = \App\Models\Registration::where('event_id', $id)
-            ->whereIn('status', ['confirmed', 'pending'])
+            ->where('status', 'confirmed')
             ->count();
 
-        if ($event->capacity > 0 && $confirmedCount >= $event->capacity) {
-            $registrationStatus = 'waitlist';
-        } else {
-            // Set status based on price
-            $registrationStatus = $event->price > 0 ? 'confirmed' : 'pending';
-        }
-
+        $isFull = $event->capacity > 0 && $confirmedCount >= $event->capacity;
+    
+        if ($isFull) {
+        $nextPosition = \App\Models\Registration::where('event_id', $id)
+            ->where('status', 'waitlist')
+            ->max('position') ?? 0;
+            
         $registration = \App\Models\Registration::create([
             'event_id' => $id,
             'attendee_id' => $userId,
-            'status' => $registrationStatus
+            'status' => 'waitlist',
+            'position' => $nextPosition + 1
         ]);
-
+        
         return response()->json([
-            'message' => 'Registration successful',
+            'message' => 'Event is full. You have been added to the waitlist.',
+            'status' => 'waitlist',
+            'waitlist_position' => $registration->position,
             'registration' => $registration
         ], 201);
     }
+
+    $registrationStatus = $event->price > 0 ? 'confirmed' : 'pending';
+    
+    $registration = \App\Models\Registration::create([
+        'event_id' => $id,
+        'attendee_id' => $userId,
+        'status' => $registrationStatus
+    ]);
+
+    return response()->json([
+        'message' => 'Registration successful',
+        'status' => $registrationStatus,
+        'registration' => $registration
+    ], 201);
+}
 
     /**
      * Attendee: list my registered tickets
