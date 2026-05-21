@@ -29,11 +29,11 @@ class DashboardController extends Controller
 
         $totalAttendees = Registration::whereHas('event', function ($q) use ($organizerId) {
             $q->where('organizer_id', $organizerId);
-        })->where('status', 'confirmed')->count();
+        })->whereIn('status', ['confirmed', 'pending'])->count();
 
         $waitlistCount = Registration::whereHas('event', function ($q) use ($organizerId) {
             $q->where('organizer_id', $organizerId);
-        })->where('status', 'waitlist')->count();
+        })->whereIn('status', ['waitlist', 'pending'])->count();
 
         $upcomingEvents = Event::where('organizer_id', $organizerId)
             ->where('status', 'published')
@@ -55,12 +55,16 @@ class DashboardController extends Controller
             ]);
 
         // ── Registrations per month (line chart) ──────────────────
+        $isSqlite = DB::connection()->getDriverName() === 'sqlite';
+        $selectMonth = $isSqlite ? "strftime('%m', registrations.created_at)" : "MONTH(registrations.created_at)";
+        $selectYear = $isSqlite ? "strftime('%Y', registrations.created_at)" : "YEAR(registrations.created_at)";
+
         $registrationsPerMonth = Registration::whereHas('event', function ($q) use ($organizerId) {
             $q->where('organizer_id', $organizerId);
         })
             ->select(
-                DB::raw('MONTH(registrations.created_at) as month'),
-                DB::raw('YEAR(registrations.created_at) as year'),
+                DB::raw("$selectMonth as month"),
+                DB::raw("$selectYear as year"),
                 DB::raw('count(*) as total')
             )
             ->where('registrations.created_at', '>=', now()->subMonths(6))
@@ -86,7 +90,7 @@ class DashboardController extends Controller
         // ── Recent events ─────────────────────────────────────────
         $recentEvents = Event::where('organizer_id', $organizerId)
             ->withCount([
-                'registrations as confirmed_count' => fn($q) => $q->where('status', 'confirmed'),
+                'registrations as confirmed_count' => fn($q) => $q->whereIn('status', ['confirmed', 'pending']),
                 'registrations as waitlist_count'  => fn($q) => $q->where('status', 'waitlist'),
             ])
             ->orderByDesc('created_at')
@@ -107,6 +111,25 @@ class DashboardController extends Controller
                     : 0,
             ]);
 
+        // ── Pending registrations ─────────────────────────────────
+        $pendingRegistrations = Registration::whereHas('event', function ($q) use ($organizerId) {
+                $q->where('organizer_id', $organizerId);
+            })
+            ->with(['event:id,title', 'attendee:id,name,email'])
+            ->where('status', 'pending')
+            ->orderBy('created_at', 'asc')
+            ->take(10)
+            ->get()
+            ->map(fn($reg) => [
+                'id' => $reg->id,
+                'event_id' => $reg->event_id,
+                'event_title' => $reg->event->title,
+                'attendee_name' => $reg->attendee->name,
+                'attendee_email' => $reg->attendee->email,
+                'created_at' => $reg->created_at,
+                'status' => $reg->status,
+            ]);
+
         return response()->json([
             'metrics' => [
                 'total_events'     => $totalEvents,
@@ -122,6 +145,7 @@ class DashboardController extends Controller
                 'events_by_status'         => $eventsByStatus,
             ],
             'recent_events' => $recentEvents,
+            'pending_registrations' => $pendingRegistrations,
         ]);
     }
 }

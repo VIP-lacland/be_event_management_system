@@ -14,8 +14,7 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
-       // Truncate users table
-        DB::table('users')->truncate();
+        DB::table('users')->delete();
 
         $users = [
             [
