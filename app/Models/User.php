@@ -18,6 +18,8 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'google_id', // Thêm dòng này
+        'avatar',    // Thêm dòng này
     ];
 
     protected $hidden = [
