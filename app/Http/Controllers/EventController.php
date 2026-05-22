@@ -15,6 +15,9 @@ class EventController extends Controller
         $query = Event::published()
             ->withCount(['registrations as confirmed_count' => function ($q) {
                 $q->where('status', 'confirmed');
+            }])
+            ->withCount(['registrations as registered_count' => function ($q) {
+                $q->whereIn('status', ['confirmed', 'pending']);
             }]);
 
         if ($search = $request->query('search')) {
@@ -53,8 +56,8 @@ class EventController extends Controller
     public function show(Event $event)
     {
         abort_if($event->status !== 'published', 404);
-        
-         $event->loadCount(['registrations as confirmed_count' => function ($q) {
+
+        $event->loadCount(['registrations as confirmed_count' => function ($q) {
             $q->where('status', 'confirmed');
         }]);
 
@@ -62,10 +65,10 @@ class EventController extends Controller
             $q->where('status', 'waitlist');
         }]);
 
-// Thêm fill_rate tính cả waitlist nếu cần
-    $event->fill_rate = $event->capacity > 0
-        ? round((($event->confirmed_count + ($event->waitlist_count ?? 0)) / $event->capacity) * 100, 1)
-        : 0;
+        // Thêm fill_rate tính cả waitlist nếu cần
+        $event->fill_rate = $event->capacity > 0
+            ? round((($event->confirmed_count + ($event->waitlist_count ?? 0)) / $event->capacity) * 100, 1)
+            : 0;
 
         return response()->json(['data' => $event]);
     }
@@ -118,7 +121,7 @@ class EventController extends Controller
     {
         // ES-50: Ownership check – chỉ organizer sở hữu event mới được sửa
         $event = Event::where('organizer_id', $request->user()->id)
-                      ->findOrFail($id);
+            ->findOrFail($id);
 
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
@@ -146,7 +149,7 @@ class EventController extends Controller
     {
         // ES-50: Ownership check
         $event = Event::where('organizer_id', $request->user()->id)
-                      ->findOrFail($id);
+            ->findOrFail($id);
 
         $validated = $request->validate([
             'status' => ['required', Rule::in(Event::STATUSES)],
@@ -209,18 +212,16 @@ class EventController extends Controller
             ], 409);
     }
 
-    // Đếm số slot đã CONFIRMED (chỉ confirmed mới chiếm chỗ)
-        $confirmedCount = \App\Models\Registration::where('event_id', $id)
-            ->where('status', 'confirmed')
+        $registeredCount = \App\Models\Registration::where('event_id', $id)
+            ->whereIn('status', ['confirmed', 'pending'])
             ->count();
 
-        $isFull = $event->capacity > 0 && $confirmedCount >= $event->capacity;
+        $isFull = $event->capacity > 0 && $registeredCount >= $event->capacity;
     
         if ($isFull) {
-        $nextPosition = \App\Models\Registration::where('event_id', $id)
-            ->where('status', 'waitlist')
-            ->max('position') ?? 0;
-            
+            $nextPosition = \App\Models\Registration::where('event_id', $id)
+                ->where('status', 'waitlist')
+                ->max('position') ?? 0;
         $registration = \App\Models\Registration::create([
             'event_id' => $id,
             'attendee_id' => $userId,
@@ -332,17 +333,17 @@ class EventController extends Controller
 {
     $event = Event::where('organizer_id', $request->user()->id)->findOrFail($id);
 
-    $registrations = Registration::with('attendee:id,name,email')
-        ->where('event_id', $event->id)
-        ->where('status', '!=', 'cancelled') 
-        ->orderByRaw("CASE 
-            WHEN status = 'pending' THEN 1
-            WHEN status = 'confirmed' THEN 2
-            WHEN status = 'waitlist' THEN 3
-            ELSE 4 END")
-        ->orderBy('position', 'asc') // Waitlist sort by position
-        ->orderBy('created_at', 'asc')
-        ->get();
+        $registrations = \App\Models\Registration::with('attendee:id,name,email')
+            ->where('event_id', $event->id)
+            ->where('status', '!=', 'cancelled') 
+            ->orderByRaw("CASE 
+                WHEN status = 'pending' THEN 1
+                WHEN status = 'confirmed' THEN 2
+                WHEN status = 'waitlist' THEN 3
+                ELSE 4 END")
+            ->orderBy('position', 'asc') // Waitlist sort by position
+            ->orderBy('created_at', 'asc')
+            ->get();
 
     return response()->json(['data' => $registrations]);
 }

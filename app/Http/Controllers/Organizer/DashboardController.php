@@ -29,11 +29,15 @@ class DashboardController extends Controller
 
         $totalAttendees = Registration::whereHas('event', function ($q) use ($organizerId) {
             $q->where('organizer_id', $organizerId);
-        })->whereIn('status', ['confirmed', 'pending'])->count();
+        })->whereIn('status', ['confirmed'])->count();
+
+        $pendingApprovalCount = Registration::whereHas('event', function ($q) use ($organizerId) {
+            $q->where('organizer_id', $organizerId);
+        })->where('status', 'pending')->count();
 
         $waitlistCount = Registration::whereHas('event', function ($q) use ($organizerId) {
             $q->where('organizer_id', $organizerId);
-        })->whereIn('status', ['waitlist', 'pending'])->count();
+        })->where('status', 'waitlist')->count();
 
         $upcomingEvents = Event::where('organizer_id', $organizerId)
             ->where('status', 'published')
@@ -135,6 +139,7 @@ class DashboardController extends Controller
                 'total_events'     => $totalEvents,
                 'published_events' => $publishedEvents,
                 'total_attendees'  => $totalAttendees,
+                'pending_approval_count' => $pendingApprovalCount,
                 'waitlist_count'   => $waitlistCount,
                 'upcoming_events'  => $upcomingEvents,
                 'cancelled_events' => $cancelledEvents,

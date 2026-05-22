@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\Organizer\DashboardController;
+use App\Http\Controllers\Attendee\DashboardController as AttendeeDashboardController;
 use App\Http\Controllers\AuthController;
 
 // Public routes
@@ -15,8 +16,9 @@ Route::get('/events/{event}', [EventController::class, 'show']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::get('/organizer/dashboard', [DashboardController::class, 'dashboard']);
-    
+
     // Attendee routes
+    Route::get('/attendee/dashboard', [AttendeeDashboardController::class, 'dashboard']);
     Route::post('/events/{id}/register', [EventController::class, 'register']);
     Route::get('/attendee/tickets', [EventController::class, 'myTickets']);
     Route::delete('/attendee/tickets/{eventId}', [EventController::class, 'cancelTicket']);
