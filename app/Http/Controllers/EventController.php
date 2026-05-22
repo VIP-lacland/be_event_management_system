@@ -6,6 +6,7 @@ use App\Models\Event;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Auth;
+use App\Models\Registration;
 
 class EventController extends Controller
 {
@@ -60,9 +61,14 @@ class EventController extends Controller
             $q->where('status', 'confirmed');
         }]);
 
-        $event->loadCount(['registrations as registered_count' => function ($q) {
-            $q->whereIn('status', ['confirmed', 'pending']);
+        $event->loadCount(['registrations as waitlist_count' => function ($q) {
+            $q->where('status', 'waitlist');
         }]);
+
+        // Thêm fill_rate tính cả waitlist nếu cần
+        $event->fill_rate = $event->capacity > 0
+            ? round((($event->confirmed_count + ($event->waitlist_count ?? 0)) / $event->capacity) * 100, 1)
+            : 0;
 
         return response()->json(['data' => $event]);
     }
@@ -188,20 +194,25 @@ class EventController extends Controller
      * Attendee: register for an event
      * POST /api/events/{id}/register
      */
-    public function register(Request $request, int $id)
+   public function register(Request $request, int $id)
     {
         $event = Event::findOrFail($id);
         $userId = $request->user()->id;
 
-        // Check if already registered
+    // Check if already registered (any status except cancelled)
         $existing = \App\Models\Registration::where('event_id', $id)
             ->where('attendee_id', $userId)
+            ->where('status', '!=', 'cancelled')
             ->first();
 
         if ($existing) {
-            return response()->json(['message' => 'You have already registered for this event.'], 400);
-        }
+            return response()->json([
+                'message' => 'You have already registered for this event.',
+                'registration' => $existing
+            ], 409);
+    }
 
+<<<<<<< HEAD
         // Check capacity - count both confirmed AND pending registrations
         // This ensures waitlist is only used when all slots are taken
         $registeredCount = \App\Models\Registration::where('event_id', $id)
@@ -216,17 +227,49 @@ class EventController extends Controller
             $registrationStatus = 'pending';
         }
 
+=======
+    // Đếm số slot đã CONFIRMED (chỉ confirmed mới chiếm chỗ)
+        $confirmedCount = \App\Models\Registration::where('event_id', $id)
+            ->where('status', 'confirmed')
+            ->count();
+
+        $isFull = $event->capacity > 0 && $confirmedCount >= $event->capacity;
+    
+        if ($isFull) {
+        $nextPosition = \App\Models\Registration::where('event_id', $id)
+            ->where('status', 'waitlist')
+            ->max('position') ?? 0;
+            
+>>>>>>> 631bffc03a23367371781de3bb149fa7df701a75
         $registration = \App\Models\Registration::create([
             'event_id' => $id,
             'attendee_id' => $userId,
-            'status' => $registrationStatus
+            'status' => 'waitlist',
+            'position' => $nextPosition + 1
         ]);
-
+        
         return response()->json([
-            'message' => 'Registration successful',
+            'message' => 'Event is full. You have been added to the waitlist.',
+            'status' => 'waitlist',
+            'waitlist_position' => $registration->position,
             'registration' => $registration
         ], 201);
     }
+
+    $registrationStatus = $event->price > 0 ? 'confirmed' : 'pending';
+    
+    $registration = \App\Models\Registration::create([
+        'event_id' => $id,
+        'attendee_id' => $userId,
+        'status' => $registrationStatus
+    ]);
+
+    return response()->json([
+        'message' => 'Registration successful',
+        'status' => $registrationStatus,
+        'registration' => $registration
+    ], 201);
+}
 
     /**
      * Attendee: list my registered tickets
@@ -249,34 +292,67 @@ class EventController extends Controller
      * DELETE /api/attendee/tickets/{eventId}
      */
     public function cancelTicket(Request $request, int $eventId)
-    {
-        $userId = $request->user()->id;
+{
+    $userId = $request->user()->id;
 
-        $registration = \App\Models\Registration::where('event_id', $eventId)
-            ->where('attendee_id', $userId)
-            ->first();
+    $registration = \App\Models\Registration::where('event_id', $eventId)
+        ->where('attendee_id', $userId)
+        ->first();
 
-        if (!$registration) {
-            return response()->json(['message' => 'Registration not found.'], 404);
-        }
-
-        if ($registration->status === 'cancelled') {
-            return response()->json(['message' => 'Ticket is already cancelled.'], 400);
-        }
-
-        $registration->update(['status' => 'cancelled']);
-
-        return response()->json(['message' => 'Ticket cancelled successfully.', 'registration' => $registration]);
+    if (!$registration) {
+        return response()->json(['message' => 'Registration not found.'], 404);
     }
+
+    if ($registration->status === 'cancelled') {
+        return response()->json(['message' => 'Ticket is already cancelled.'], 400);
+    }
+
+    // 🔄 Dùng transaction để đảm bảo atomicity
+    $wasConfirmed = $registration->status === 'confirmed';
+
+    \Illuminate\Support\Facades\DB::transaction(function () use ($registration, $userId, $wasConfirmed) {
+        $eventId = $registration->event_id;
+        $wasWaitlist = $registration->status === 'waitlist';
+        
+        $registration->delete(); 
+
+        if ($wasConfirmed) {
+            $nextInLine = Registration::where('event_id', $eventId)
+                ->where('status', 'waitlist')
+                ->orderBy('position', 'asc')
+                ->first();
+
+            if ($nextInLine) {
+                // Promote lên confirmed
+                $nextInLine->update([
+                    'status' => 'confirmed',
+                    'position' => null
+                ]);
+
+                // Giảm position của tất cả người còn lại trong waitlist
+                Registration::where('event_id', $eventId)
+                    ->where('status', 'waitlist')
+                    ->where('id', '!=', $nextInLine->id)
+                    ->decrement('position');
+            }
+        }
+    });
+
+    return response()->json([
+        'message' => 'Registration cancelled successfully',
+        'auto_promoted' => $wasConfirmed 
+    ]);
+}
 
     /**
      * Organizer: list registrations for a specific event
      * GET /api/organizer/events/{id}/registrations
      */
     public function registrations(Request $request, int $id)
-    {
-        $event = Event::where('organizer_id', $request->user()->id)->findOrFail($id);
+{
+    $event = Event::where('organizer_id', $request->user()->id)->findOrFail($id);
 
+<<<<<<< HEAD
         $registrations = \App\Models\Registration::with('attendee:id,name,email')
             ->where('event_id', $event->id)
             ->orderByRaw("CASE
@@ -286,9 +362,22 @@ class EventController extends Controller
                 ELSE 4 END")
             ->orderBy('created_at')
             ->get();
+=======
+    $registrations = Registration::with('attendee:id,name,email')
+        ->where('event_id', $event->id)
+        ->where('status', '!=', 'cancelled') 
+        ->orderByRaw("CASE 
+            WHEN status = 'pending' THEN 1
+            WHEN status = 'confirmed' THEN 2
+            WHEN status = 'waitlist' THEN 3
+            ELSE 4 END")
+        ->orderBy('position', 'asc') // Waitlist sort by position
+        ->orderBy('created_at', 'asc')
+        ->get();
+>>>>>>> 631bffc03a23367371781de3bb149fa7df701a75
 
-        return response()->json(['data' => $registrations]);
-    }
+    return response()->json(['data' => $registrations]);
+}
 
     /**
      * Organizer: Update registration status
@@ -304,6 +393,12 @@ class EventController extends Controller
 
         $registration = \App\Models\Registration::where('event_id', $event->id)
             ->findOrFail($registrationId);
+
+        if ($registration->status === 'waitlist' && $validated['status'] === 'confirmed') {
+            return response()->json([
+            'message' => 'Cannot manually promote from waitlist. Promotion happens automatically when someone cancels.'
+        ], 403);
+    }
 
         $registration->update(['status' => $validated['status']]);
 
