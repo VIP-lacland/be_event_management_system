@@ -6,10 +6,9 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Laravel\Sanctum\HasApiTokens; // ← QUAN TRỌNG: Trait của Sanctum
 
-class User extends Authenticatable implements MustVerifyEmail
+class User extends Authenticatable
 {
     // ✅ 2. Dùng trait HasApiTokens (phải có để dùng createToken())
     use HasApiTokens, HasFactory, Notifiable;
@@ -19,7 +18,6 @@ class User extends Authenticatable implements MustVerifyEmail
         'email',
         'password',
         'role',
-        'email_verified_at',
     ];
 
     protected $hidden = [

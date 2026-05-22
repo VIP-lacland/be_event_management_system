@@ -12,89 +12,101 @@ use Illuminate\Support\Facades\Validator;
 
 class AuthController extends Controller
 {
-    /**
-     * Đăng ký user với email verification
-     * POST /api/auth/register
-     */
-    public function register(Request $request)
-    {
-        // Validate input
-        $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:8|confirmed',
-            'role' => 'required|in:attendee,organizer',
+public function register(Request $request)
+{
+    $validator = Validator::make($request->all(), [
+        'name' => 'required|string|max:255',
+        'email' => 'required|string|email|max:255|unique:users',
+        'password' => 'required|string|min:8|confirmed',
+        'role' => 'required|in:attendee,organizer',
+    ]);
+
+    if ($validator->fails()) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Validation errors',
+            'errors' => $validator->errors()
+        ], 422);
+    }
+
+    try {
+        $user = User::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => Hash::make($request->password),
+            'role' => $request->role,
         ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Validation errors',
-                'errors' => $validator->errors()
-            ], 422);
-        }
+        \Illuminate\Support\Facades\Mail::raw(
+            "Hello {$user->name},\n\n" .
+            "Welcome to " . config('app.name') . "!\n\n" .
+            "Your account has been created successfully.\n" .
+            "You can now login with your email: {$user->email}\n\n" .
+            "Regards,\n" . config('app.name') . " Team",
+            function ($message) use ($user) {
+                $message->to($user->email)
+                        ->subject('Welcome to ' . config('app.name') . '!');
+            }
+        );
 
-        try {
-            // Create user
-            $user = User::create([
-                'name' => $request->name,
-                'email' => $request->email,
-                'password' => Hash::make($request->password),
-                'role' => $request->role,
-            ]);
+        return response()->json([
+            'success' => true,
+            'message' => 'Registration successful! Welcome email has been sent.',
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role,
+            ]
+        ], 201);
 
-            // Fire event to send verification email
-            event(new Registered($user));
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Registration successful! Please check your email to verify your account.',
-                'user' => [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    'role' => $user->role,
-                ]
-            ], 201);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Registration failed. Please try again.',
-                'error' => $e->getMessage()
-            ], 500);
-        }
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Registration failed. Please try again.',
+            'error' => $e->getMessage()
+        ], 500);
     }
+}
 
     /**
      * Xác thực email
      * GET /api/auth/email/verify/{id}/{hash}
      */
-    public function verifyEmail($id, $hash)
-    {
+    /**
+ * Xác thực email và redirect về Frontend
+ * GET /api/auth/email/verify/{id}/{hash}
+ */
+public function verifyEmail($id, $hash)
+{
+    $frontendUrl = env('FRONTEND_URL', 'http://localhost:5173');
+
+    try {
         $user = User::findOrFail($id);
 
+        // Kiểm tra hash có đúng không
         if (!hash_equals((string) $hash, sha1($user->getEmailForVerification()))) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Invalid verification link'
-            ], 400);
+            // Link không hợp lệ → redirect về frontend với status error
+            return redirect($frontendUrl . '/verify-email/error?message=' . urlencode('Invalid verification link'));
         }
 
+        // Kiểm tra email đã verify chưa
         if ($user->hasVerifiedEmail()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Email already verified'
-            ], 400);
+            // Đã verify rồi → redirect success
+            return redirect($frontendUrl . '/verify-email/success?message=' . urlencode('Email already verified') . '&already_verified=1');
         }
 
+        // Mark email as verified
         $user->markEmailAsVerified();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Email verified successfully!'
-        ], 200);
+        // Verify thành công → redirect về frontend success page
+        return redirect($frontendUrl . '/verify-email/success?message=' . urlencode('Email verified successfully! You can now login.'));
+
+    } catch (\Exception $e) {
+        // Lỗi server → redirect error
+        return redirect($frontendUrl . '/verify-email/error?message=' . urlencode('Verification failed. Please try again.'));
     }
+}
 
     /**
      * Gửi lại email xác thực
@@ -128,45 +140,48 @@ class AuthController extends Controller
      * POST /api/auth/login
      */
     public function login(Request $request)
-    {
-        $request->validate([
-            'email' => 'required|email',
-            'password' => 'required',
-        ]);
+{
+    $validator = Validator::make($request->all(), [
+        'email' => 'required|email',
+        'password' => 'required',
+    ]);
 
-        // Kiểm tra credentials
-        if (!Auth::attempt($request->only('email', 'password'))) {
-            throw ValidationException::withMessages([
-                'email' => ['The provided credentials are incorrect.'],
-            ]);
-        }
-
-        $user = Auth::user();
-
-        // Kiểm tra email đã được xác thực chưa
-        if (!$user->hasVerifiedEmail()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Please verify your email before logging in. Check your inbox or request a new verification email.',
-                'email_verified' => false
-            ], 403);
-        }
-
-        // Tạo Sanctum token
-        $token = $user->createToken('auth-token')->plainTextToken;
-
+    if ($validator->fails()) {
         return response()->json([
-            'success' => true,
-            'message' => 'Login successful',
-            'token' => $token,
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'role' => $user->role,
-            ]
-        ]);
+            'success' => false,
+            'message' => 'Validation errors',
+            'errors' => $validator->errors()
+        ], 422);
     }
+
+    // Kiểm tra credentials
+    if (!Auth::attempt($request->only('email', 'password'))) {
+        return response()->json([
+            'success' => false,
+            'message' => 'The provided credentials are incorrect.',
+        ], 401);
+    }
+
+    $user = Auth::user();
+
+    // ✅ XÓA PHẦN CHECK EMAIL VERIFIED
+    // if (!$user->hasVerifiedEmail()) { ... }
+
+    // Tạo Sanctum token
+    $token = $user->createToken('auth-token')->plainTextToken;
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Login successful',
+        'token' => $token,
+        'user' => [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'role' => $user->role,
+        ]
+    ]);
+}
 
     /**
      * Đăng xuất user

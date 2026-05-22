@@ -11,11 +11,6 @@ Route::post('/auth/login', [AuthController::class, 'login']);
 Route::get('/events', [EventController::class, 'index']);
 Route::get('/events/{event}', [EventController::class, 'show']);
 
-// Email verification routes (public - no auth required)
-Route::get('/auth/email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])
-    ->middleware('signed')
-    ->name('verification.verify');
-Route::post('/auth/email/resend', [AuthController::class, 'resendVerification']);
 
 // Protected routes ( need token )
 Route::middleware('auth:sanctum')->group(function () {
