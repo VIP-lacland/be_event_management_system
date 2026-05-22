@@ -212,35 +212,16 @@ class EventController extends Controller
             ], 409);
     }
 
-<<<<<<< HEAD
-        // Check capacity - count both confirmed AND pending registrations
-        // This ensures waitlist is only used when all slots are taken
         $registeredCount = \App\Models\Registration::where('event_id', $id)
             ->whereIn('status', ['confirmed', 'pending'])
             ->count();
 
-        // Waitlist is only used when event is full (confirmed + pending >= capacity)
-        // Otherwise, registrations go to pending for organizer approval
-        if ($event->capacity > 0 && $registeredCount >= $event->capacity) {
-            $registrationStatus = 'waitlist';
-        } else {
-            $registrationStatus = 'pending';
-        }
-
-=======
-    // Đếm số slot đã CONFIRMED (chỉ confirmed mới chiếm chỗ)
-        $confirmedCount = \App\Models\Registration::where('event_id', $id)
-            ->where('status', 'confirmed')
-            ->count();
-
-        $isFull = $event->capacity > 0 && $confirmedCount >= $event->capacity;
+        $isFull = $event->capacity > 0 && $registeredCount >= $event->capacity;
     
         if ($isFull) {
-        $nextPosition = \App\Models\Registration::where('event_id', $id)
-            ->where('status', 'waitlist')
-            ->max('position') ?? 0;
-            
->>>>>>> 631bffc03a23367371781de3bb149fa7df701a75
+            $nextPosition = \App\Models\Registration::where('event_id', $id)
+                ->where('status', 'waitlist')
+                ->max('position') ?? 0;
         $registration = \App\Models\Registration::create([
             'event_id' => $id,
             'attendee_id' => $userId,
@@ -352,29 +333,17 @@ class EventController extends Controller
 {
     $event = Event::where('organizer_id', $request->user()->id)->findOrFail($id);
 
-<<<<<<< HEAD
         $registrations = \App\Models\Registration::with('attendee:id,name,email')
             ->where('event_id', $event->id)
-            ->orderByRaw("CASE
+            ->where('status', '!=', 'cancelled') 
+            ->orderByRaw("CASE 
                 WHEN status = 'pending' THEN 1
                 WHEN status = 'confirmed' THEN 2
                 WHEN status = 'waitlist' THEN 3
                 ELSE 4 END")
-            ->orderBy('created_at')
+            ->orderBy('position', 'asc') // Waitlist sort by position
+            ->orderBy('created_at', 'asc')
             ->get();
-=======
-    $registrations = Registration::with('attendee:id,name,email')
-        ->where('event_id', $event->id)
-        ->where('status', '!=', 'cancelled') 
-        ->orderByRaw("CASE 
-            WHEN status = 'pending' THEN 1
-            WHEN status = 'confirmed' THEN 2
-            WHEN status = 'waitlist' THEN 3
-            ELSE 4 END")
-        ->orderBy('position', 'asc') // Waitlist sort by position
-        ->orderBy('created_at', 'asc')
-        ->get();
->>>>>>> 631bffc03a23367371781de3bb149fa7df701a75
 
     return response()->json(['data' => $registrations]);
 }
