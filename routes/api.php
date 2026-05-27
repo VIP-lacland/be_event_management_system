@@ -6,6 +6,7 @@ use App\Http\Controllers\Organizer\DashboardController;
 use App\Http\Controllers\Attendee\DashboardController as AttendeeDashboardController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\GoogleAuthController;
+use App\Http\Controllers\ReviewController;
 
 // Public routes
 Route::post('/auth/register', [AuthController::class, 'register']);
@@ -16,6 +17,7 @@ Route::get('/auth/google/callback', [GoogleAuthController::class, 'handleGoogleC
 
 Route::get('/events', [EventController::class, 'index']);
 Route::get('/events/{event}', [EventController::class, 'show']);
+Route::get('/events/{event}/reviews', [ReviewController::class, 'index']);
 
 
 // Protected routes ( need token )
@@ -29,6 +31,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/events/{id}/register', [EventController::class, 'register']);
     Route::get('/attendee/tickets', [EventController::class, 'myTickets']);
     Route::delete('/attendee/tickets/{eventId}', [EventController::class, 'cancelTicket']);
+    Route::post('/events/{event}/reviews', [ReviewController::class, 'store'])->middleware('role:attendee');
 
     Route::prefix('organizer/events')->middleware(['auth:sanctum', 'role:organizer'])->group(function () {
         Route::get('/', [EventController::class, 'myEvents']);

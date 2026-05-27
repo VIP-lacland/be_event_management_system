@@ -57,6 +57,11 @@ class Event extends Model
         return $this->hasMany(Registration::class);
     }
 
+    public function reviews(): HasMany
+    {
+        return $this->hasMany(Review::class);
+    }
+
     // ── Scopes ────────────────────────────────────────────────
 
     // Chỉ lấy event đã published
