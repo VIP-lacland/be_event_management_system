@@ -6,6 +6,8 @@ use App\Http\Controllers\Organizer\DashboardController;
 use App\Http\Controllers\Attendee\DashboardController as AttendeeDashboardController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\GoogleAuthController;
+use App\Http\Controllers\Attendee\ProfileController;
+
 
 // Public routes
 Route::post('/auth/register', [AuthController::class, 'register']);
@@ -28,6 +30,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/events/{id}/register', [EventController::class, 'register']);
     Route::get('/attendee/tickets', [EventController::class, 'myTickets']);
     Route::delete('/attendee/tickets/{eventId}', [EventController::class, 'cancelTicket']);
+     Route::get('attendee/profile', [ProfileController::class, 'show']);
+    Route::put('attendee/profile', [ProfileController::class, 'update']);
+    Route::get('attendee/profile/tickets', [ProfileController::class, 'tickets']);
+    Route::delete('attendee/profile/tickets/{eventId}', [ProfileController::class, 'cancelTicket']);
 
     Route::prefix('organizer/events')->middleware(['auth:sanctum', 'role:organizer'])->group(function () {
         Route::get('/', [EventController::class, 'myEvents']);
