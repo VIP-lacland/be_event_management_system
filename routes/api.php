@@ -21,7 +21,6 @@ Route::get('/events/{event}', [EventController::class, 'show']);
 // Protected routes ( need token )
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/auth/logout', [AuthController::class, 'logout']);
-    Route::get('/auth/me', [AuthController::class, 'me']);
     Route::get('/organizer/dashboard', [DashboardController::class, 'dashboard']);
 
     // Attendee routes
