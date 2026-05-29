@@ -6,68 +6,61 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\WelcomeUserMail;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Auth\Events\Registered;
-use Illuminate\Support\Facades\Validator;
 
-class AuthController extends Controller
-{
-public function register(Request $request)
-{
-    $validator = Validator::make($request->all(), [
-        'name' => 'required|string|max:255',
-        'email' => 'required|string|email|max:255|unique:users',
-        'password' => 'required|string|min:8|confirmed',
-        'role' => 'required|in:attendee,organizer',
-    ]);
-
-    if ($validator->fails()) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Validation errors',
-            'errors' => $validator->errors()
-        ], 422);
-    }
-
-    try {
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-            'role' => $request->role,
+    class AuthController extends Controller
+    {
+    public function register(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users',
+            'password' => 'required|string|min:8|confirmed',
+            'role' => 'required|in:attendee,organizer',
         ]);
 
-        \Illuminate\Support\Facades\Mail::raw(
-            "Hello {$user->name},\n\n" .
-            "Welcome to " . config('app.name') . "!\n\n" .
-            "Your account has been created successfully.\n" .
-            "You can now login with your email: {$user->email}\n\n" .
-            "Regards,\n" . config('app.name') . " Team",
-            function ($message) use ($user) {
-                $message->to($user->email)
-                        ->subject('Welcome to ' . config('app.name') . '!');
-            }
-        );
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation errors',
+                'errors' => $validator->errors()
+            ], 422);
+        }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Registration successful! Welcome email has been sent.',
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'role' => $user->role,
-            ]
-        ], 201);
+        try {
+            $user = User::create([
+                'name' => $request->name,
+                'email' => $request->email,
+                'password' => Hash::make($request->password),
+                'role' => $request->role,
+            ]);
 
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Registration failed. Please try again.',
-            'error' => $e->getMessage()
-        ], 500);
+            // Gửi email chào mừng bằng Mailable class
+            Mail::to($user->email)->send(new WelcomeUserMail($user));
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Registration successful! Welcome email has been sent.',
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'role' => $user->role,
+                ]
+            ], 201);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Registration failed. Please try again.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
-}
 
     /**
      * Xác thực email

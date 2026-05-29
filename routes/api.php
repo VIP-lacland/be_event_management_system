@@ -7,6 +7,7 @@ use App\Http\Controllers\Attendee\DashboardController as AttendeeDashboardContro
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\GoogleAuthController;
 use App\Http\Controllers\ReviewController;
+use App\Http\Controllers\NotificationController;
 
 // Public routes
 Route::post('/auth/register', [AuthController::class, 'register']);
@@ -25,6 +26,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::get('/auth/me', [AuthController::class, 'me']);
     Route::get('/organizer/dashboard', [DashboardController::class, 'dashboard']);
+
+    // Notifications
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::patch('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+    Route::patch('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
 
     // Attendee routes
     Route::get('/attendee/dashboard', [AttendeeDashboardController::class, 'dashboard']);

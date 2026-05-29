@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Registration;
+use App\Notifications\RegistrationStatusNotification;
 
 class EventController extends Controller
 {
@@ -258,6 +259,8 @@ class EventController extends Controller
             'position' => $nextPosition + 1
         ]);
         
+        $request->user()->notify(new RegistrationStatusNotification($event, 'waitlist', 'Event is full. You have been added to the waitlist.'));
+
         return response()->json([
             'message' => 'Event is full. You have been added to the waitlist.',
             'status' => 'waitlist',
@@ -273,6 +276,8 @@ class EventController extends Controller
         'attendee_id' => $userId,
         'status' => $registrationStatus
     ]);
+
+    $request->user()->notify(new RegistrationStatusNotification($event, $registrationStatus, "You have successfully registered for {$event->title}."));
 
     return response()->json([
         'message' => 'Registration successful',
@@ -344,6 +349,13 @@ class EventController extends Controller
                     ->where('status', 'waitlist')
                     ->where('id', '!=', $nextInLine->id)
                     ->decrement('position');
+
+                // Gửi thông báo cho người được đôn vé
+                $event = Event::find($eventId);
+                $promotedUser = App\Models\User::find($nextInLine->attendee_id);
+                if ($promotedUser && $event) {
+                    $promotedUser->notify(new RegistrationStatusNotification($event, 'confirmed', "Great news! A spot opened up and you have been promoted from the waitlist to confirmed for {$event->title}."));
+                }
             }
         }
     });
