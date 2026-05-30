@@ -32,6 +32,14 @@ class EventController extends Controller
             $query->where('category', $category);
         }
 
+        if ($date = $request->query('date')) {
+            $query->whereDate('event_date', $date);
+        }
+
+        if ($city = $request->query('city')) {
+            $query->whereRaw('LOWER(location) LIKE ?', ["%{$city}%"]);
+        }
+
         if ($location = $request->query('location')) {
             $query->where('location', 'like', "%{$location}%");
         }
@@ -246,7 +254,7 @@ class EventController extends Controller
             ->count();
 
         $isFull = $event->capacity > 0 && $registeredCount >= $event->capacity;
-    
+
         if ($isFull) {
             $nextPosition = \App\Models\Registration::where('event_id', $id)
                 ->where('status', 'waitlist')
@@ -257,7 +265,7 @@ class EventController extends Controller
             'status' => 'waitlist',
             'position' => $nextPosition + 1
         ]);
-        
+
         return response()->json([
             'message' => 'Event is full. You have been added to the waitlist.',
             'status' => 'waitlist',
@@ -267,7 +275,7 @@ class EventController extends Controller
     }
 
     $registrationStatus = $event->price > 0 ? 'confirmed' : 'pending';
-    
+
     $registration = \App\Models\Registration::create([
         'event_id' => $id,
         'attendee_id' => $userId,
@@ -323,8 +331,8 @@ class EventController extends Controller
     \Illuminate\Support\Facades\DB::transaction(function () use ($registration, $userId, $wasConfirmed) {
         $eventId = $registration->event_id;
         $wasWaitlist = $registration->status === 'waitlist';
-        
-        $registration->delete(); 
+
+        $registration->delete();
 
         if ($wasConfirmed) {
             $nextInLine = Registration::where('event_id', $eventId)
@@ -350,7 +358,7 @@ class EventController extends Controller
 
     return response()->json([
         'message' => 'Registration cancelled successfully',
-        'auto_promoted' => $wasConfirmed 
+        'auto_promoted' => $wasConfirmed
     ]);
 }
 
@@ -364,8 +372,8 @@ class EventController extends Controller
 
         $registrations = \App\Models\Registration::with('attendee:id,name,email')
             ->where('event_id', $event->id)
-            ->where('status', '!=', 'cancelled') 
-            ->orderByRaw("CASE 
+            ->where('status', '!=', 'cancelled')
+            ->orderByRaw("CASE
                 WHEN status = 'pending' THEN 1
                 WHEN status = 'confirmed' THEN 2
                 WHEN status = 'waitlist' THEN 3
