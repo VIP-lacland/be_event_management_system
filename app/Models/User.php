@@ -4,6 +4,7 @@ namespace App\Models;
 
 // ✅ 1. Import các class cần thiết
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens; // ← QUAN TRỌNG: Trait của Sanctum
@@ -33,5 +34,10 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    public function reviews(): HasMany
+    {
+        return $this->hasMany(Review::class, 'attendee_id');
     }
 }
